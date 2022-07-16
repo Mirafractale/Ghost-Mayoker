@@ -1,0 +1,946 @@
+#uselib "winmm.dll"
+#cfunc timeGetTime "timeGetTime"
+
+#uselib "dsoundex.hpi"
+#func ds_init "_ds_init@16" bmscr, int, int
+#func ds_load "_ds_load@16" bmscr, str, int, int
+#func ds_play "_ds_play@16" int, int, int, int
+#func ds_loop "_ds_loop@16" int, int, int, int
+#func ds_stop "_ds_stop@16" int, int, int, int
+#func ds_dup "_ds_dup@16" int, int, int, int
+#func ds_rel "_ds_rel@16" int, int, int, int
+
+#uselib "hspext.dll"
+#func clipset "_clipset@16" bmscr, str, int, int
+
+screen 0, 320, 240, 0, 400, 200
+chdpm "data.dpm"
+
+randomize
+title "Ghost Mayoker"
+seNum = 50
+seDuplicateNum = 3
+picload "DPM:data.dpm:chip_4.bmp", 1
+pos 0, 0
+gzoom 320, 320, 0, 0, 0, 160, 160
+ds_init 44100, 2
+dim sePlayStack, seNum, 2
+
+repeat seNum
+	ds_load "data\\se\\se_" + cnt + ".wav", cnt
+	mes stat
+	await 0
+loop
+
+for i, 0, seNum
+	for j, 0, seDuplicateNum - 1
+	ds_dup seNum + i + seNum * j, i
+	next
+next
+
+
+buffer 2, 320, 240, 0
+picload "DPM:data.dpm:chip_1.bmp"
+buffer 3, 320, 240, 0
+picload "DPM:data.dpm:chip_2.bmp"
+buffer 4, 320, 240, 0
+picload "DPM:data.dpm:chip_3.bmp"
+gsel 0
+dim isKeyPushed, 10, 2
+
+*TitleLoop
+	frameCountA += 1
+
+	gosub *CheckKeyPush
+
+	if ( isKeyPushed(9, 0) == 1 ) {
+		end
+	}
+	if ( titleTransparency >= 1 ) {
+		titleTransparency += 1
+	}
+	if ( titleTransparency == 2 ) {
+		sePlayStack(17, 0) = 1
+	}
+	if ( frameCountA == 1 ) {
+		sePlayStack(18, 0) = 1
+	}
+	if ( titleTransparency == 64 ) {
+		goto *LoadMusic
+	}
+	if ( isKeyPushed(4, 0) == 1 & titleTransparency == 0 & frameCountA >= 16 ) {
+		titleTransparency = 1
+	}
+	if ( isKeyPushed(0, 1) == 1 ) {
+		sePlayStack(20, 0) = 1
+		musicNum = (musicNum + 1) \ 4
+	}
+	if ( isKeyPushed(2, 1) == 1 ) {
+		sePlayStack(20, 0) = 1
+		musicNum = (musicNum + 3) \ 4
+	}
+
+	redraw 0
+	color 0, 0, 0
+	boxf
+
+	if ( frameCountA <= 16 ) {
+		gmode 5, 0, 0, frameCountA * 16
+		pos 104, 24 - frameCountA / 2
+		gcopy 4, 8, 128, 48, 88
+	}
+	else {
+		if ( titleTransparency >= 33 ) {
+			gmode 5, 0, 0, (256 - (titleTransparency - 32) * 16) * (titleTransparency \ 2 + 2) / 2
+			pos 104, 16
+			gcopy 4, 8, 128, 48, 88
+		}
+		else {
+			gmode 5, 0, 0, 256
+			pos 104, 16
+			gcopy 4, 8, 128, 48, 88
+		}
+	}
+
+	pos 24, 16
+	gcopy 2, 0, 80, 64, 32
+
+	if ( isKeyPushed(0, 1) != 1 & isKeyPushed(2, 1) != 1 ) {
+		pos 72, 90
+		gcopy 4, 64 + frameCountA / 4 \ 4 * 16, 128 + musicNum * 16, 15, 15
+	}
+	if ( titleTransparency >= 1 ) {
+		gmode 5, 0, 0, 256 * (titleTransparency \ 2) / titleTransparency
+	}
+
+	pos 32, 72
+	gcopy 2, 136, 112, 47, 7
+	pos 0, 0
+	gzoom 320, 320, 0, 0, 0, 160, 160
+	redraw 1
+	gosub *PlaySE
+	await 33
+
+	goto *TitleLoop
+
+*LoadMusic
+	musicBufferNum = seNum * seDuplicateNum + 1
+	old_musicNum = musicNum
+	if ( musicNum == 3 ) {
+		ds_rel musicBufferNum
+		goto *InitDatas
+	}
+	ds_load "data\\music\\" + musicNum + "_a.wav", musicBufferNum
+	ds_load "data\\music\\" + musicNum + "_b.wav", musicBufferNum + 1
+	ds_load "data\\music\\" + musicNum + "_g.wav", musicBufferNum + 2
+
+*InitDatas
+	enemyMax = 100
+	dimtype enemyDatas, 3, enemyMax, 6, 0, 0
+	dim enemyExistence, enemyMax
+	dim enemyMode, enemyMax
+	bulletMax = 10
+	dimtype bulletDatas, 3, bulletMax, 5, 0, 0
+	dim bulletExistence, bulletMax
+	effectMax = 100
+	dimtype effectDatas, 3, effectMax, 4, 0, 0
+	dim effectMode, effectMax
+	playerPosOffset = 80
+	playerPosAngle = 0.0
+	playerPosHeight = 20.0
+	playerPosAgnleOffset = -90.0
+	zyobutsu = 0
+	score = 0
+	level = 1
+	levelCoefficient = 1
+	gameMode = 0
+	enemyTransparencyC = 0
+	frameCountB = 0
+	ghost_gameOverAnimationFrame = 0
+	scoreAddC = 0
+	scoreAddDispTime = 0
+	scoreAddDisp = 0
+	scoreAddTransparency = 0
+	frameCountA = 0
+	levelUpTransparency = 0
+	seNumForDup = 0
+	playerBomb = 1
+	playerPosX = 80.0
+	playerPosY = 60.0
+	sKeyTransparency = 0
+	playerPosAgnleOffset_ = 0
+	playerPosHeight_ = 0
+	musicframeCountA = 0
+	bombCoefficient = 0
+	gameMode = 0
+	random360 = 0
+	old_gotTime = timeGetTime()
+
+*GameLoop
+	gotTime = timeGetTime() - old_gotTime
+
+	if ( frameCountA * 1000 / 30 <= gotTime ) {
+		frameCountA += 1
+		if ( isKeyPushed(9, 0) == 1 ) {
+			end
+		}
+		if ( gameMode == 1 ) {
+			musicframeCountA += 1
+			gosub *CheckKeyPush
+			if ( isKeyPushed(4, 1) \ 3 == 1 ) {
+				gosub *CheckBulletExistence
+				if ( selectedBulledNum != (-1) ) {
+					bulletExistence(selectedBulledNum) = 1
+					bulletDatas(selectedBulledNum, 0) = playerPosX
+					bulletDatas(selectedBulledNum, 1) = playerPosY
+					bulletDatas(selectedBulledNum, 4) = playerPosAgnleOffset
+					if ( frameCountA <= 873 | musicNum == 3 ) {
+						sePlayStack(0, 0) = 1
+					}
+					else {
+						sePlayStack(22, 0) = 1
+					}
+				}
+			}
+			if ( bombFrameCount >= 1 ) {
+				bombFrameCount -= 1
+			}
+			if ( isKeyPushed(5, 1) == 1 & playerBomb >= 1 ) {
+				bombFrameCount = 13
+				sePlayStack(12, 0) = 1
+				playerBomb -= 1
+			}
+			if ( playerPosAngle >= 2 ) {
+				playerPosAngle -= 1.5
+			}
+			if ( playerPosAngle <= (-2) ) {
+				playerPosAngle += 1.5
+			}
+			if ( isKeyPushed(2, 0) == 1 & absf(playerPosAngle) <= 10 ) {
+				playerPosAngle -= 4.0 * ((playerPosHeight - 75) / 55)
+			}
+			if ( isKeyPushed(0, 0) == 1 & absf(playerPosAngle) <= 10 ) {
+				playerPosAngle += 4.0 * ((playerPosHeight - 75) / 55)
+			}
+			playerPosAgnleOffset = 1.0 * (playerPosAgnleOffset + playerPosAngle) \ 360
+			if ( sKeyTransparency >= 1 ) {
+				sKeyTransparency -= 1
+			}
+			if ( isKeyPushed(8, 1) == 1 ) {
+				playerPosAgnleOffset = (1.0 * playerPosAgnleOffset + 180) \ 360
+				sKeyTransparency = 3
+				playerPosAgnleOffset_ = playerPosAgnleOffset
+				playerPosHeight_ = playerPosHeight
+				sePlayStack(23, 0) = 1
+			}
+			playerPosX = 1.0 * playerPosOffset + cos(0.0174532925199433 * playerPosAgnleOffset) * playerPosHeight
+			playerPosY = 1.0 * playerPosOffset + sin(0.0174532925199433 * playerPosAgnleOffset) * playerPosHeight
+			if ( isKeyPushed(1, 0) == 1 & playerPosHeight <= 69 ) {
+				playerPosHeight += 1
+			}
+			if ( isKeyPushed(3, 0) == 1 & playerPosHeight >= 16 ) {
+				playerPosHeight -= 1
+			}
+			if ( playerPosHeight >= 21 ) {
+				playerPosHeight -= (playerPosHeight - 20) / 60
+			}
+			if ( playerPosHeight <= 19 ) {
+				playerPosHeight -= (playerPosHeight - 20) / 5
+			}
+			if ( playerPosHeight >= 69 ) {
+				playerPosHeight = 69.0
+			}
+			if ( playerPosHeight <= 16 ) {
+				playerPosHeight = 16.0
+			}
+			if ( score >= (bombCoefficient + 1) * 10000 ) {
+				playerBomb += 1
+				bombCoefficient += 1
+				sePlayStack(21, 0) = 1
+			}
+			gosub *RenderEnemy
+			if ( frameCountA \ 240 == 0 ) {
+				enemyAtkMode = rnd(5)
+				enemyRnd4 = rnd(7) - 3
+				enemyRnd360 = rnd(360)
+				if ( enemyAtkMode == 3 & enemyRnd4 == 0 ) {
+					enemyRnd4 = 3
+				}
+			}
+			if ( enemySpawnC <= 0 & bombFrameCount == 0 ) {
+				enemyRndC1 += 1
+				gosub *CheckEnemyExistence
+				if ( selectedEnemyNum != (-1) ) {
+					random360 = rnd(360)
+					enemyExistence(selectedEnemyNum) = 1
+					if ( level <= 5 ) {
+						enemyDatas(selectedEnemyNum, 4) = 1.0 * random360 + 180 + 60 * (rnd(2) * 2 - 1) / (zyobutsu / 100 + 1)
+					}
+					else {
+						if ( level \ 6 == 0 ) {
+							enemyDatas(selectedEnemyNum, 4) = 1.0 * random360 + 180 + 60 * (selectedEnemyNum \ 2 * 2 - 1) / (zyobutsu / 100 + 1)
+							enemyMode(selectedEnemyNum) = 0
+						}
+						else {
+							if ( enemyAtkMode == 0 ) {
+								if ( enemyRndC1 \ 2 == 0 ) {
+									enemyDatas(selectedEnemyNum, 4) = 1.0 * random360 + 180 + 60 * (selectedEnemyNum \ 2 * 2 - 1) * (rnd(2) + 1) / (zyobutsu / 100 + 1)
+									enemyMode(selectedEnemyNum) = 0
+								}
+								else {
+									random360 = (frameCountA * enemyRnd4 + enemyRnd360) \ 360
+									enemyDatas(selectedEnemyNum, 4) = 1.0 * random360 + 180
+									enemyMode(selectedEnemyNum) = 1
+								}
+							}
+							if ( enemyAtkMode == 1 ) {
+								random360 = (frameCountA * enemyRnd4 + enemyRnd360 + enemyRndC1 \ 2 * 180) \ 360
+								if ( enemyRndC1 \ 2 >= 1 ) {
+									enemyDatas(selectedEnemyNum, 4) = 1.0 * random360 + 180 + 60 * (selectedEnemyNum \ 2 * 2 - 1) * (rnd(2) + 1) / (zyobutsu / 100 + 1)
+									enemyMode(selectedEnemyNum) = 0
+								}
+								else {
+									enemyDatas(selectedEnemyNum, 4) = 1.0 * random360 + 180
+									enemyMode(selectedEnemyNum) = 1
+								}
+							}
+							if ( enemyAtkMode == 2 ) {
+								random360 = (frameCountA / 10 * enemyRnd4 + enemyRnd360 + enemyRndC1 \ 3 * 120) \ 360
+								if ( enemyRndC1 \ 3 >= 1 ) {
+									enemyDatas(selectedEnemyNum, 4) = 1.0 * random360 + 180 + 120 * (selectedEnemyNum \ 2 * 2 - 1) * (rnd(2) + 1) / (zyobutsu / 100 + 1)
+									enemyMode(selectedEnemyNum) = 0
+								}
+								else {
+									enemyDatas(selectedEnemyNum, 4) = 1.0 * random360 + 180
+									enemyMode(selectedEnemyNum) = 1
+								}
+							}
+							if ( enemyAtkMode == 3 ) {
+								random360 = (frameCountA * enemyRnd4 * 2 + enemyRnd360) \ 360
+								enemyDatas(selectedEnemyNum, 4) = 1.0 * random360 + 180
+								enemyMode(selectedEnemyNum) = 1
+							}
+							if ( enemyAtkMode == 4 ) {
+								if ( enemyRndC1 \ 48 >= 1 ) {
+									enemyDatas(selectedEnemyNum, 4) = 1.0 * random360 + 180 + 60 * (selectedEnemyNum \ 2 * 2 - 1) * (rnd(2) + 1) / (zyobutsu / 100 + 1)
+									enemyMode(selectedEnemyNum) = 0
+								}
+								else {
+									enemyDatas(selectedEnemyNum, 4) = 1.0 * random360 + 180
+									enemyMode(selectedEnemyNum) = 1
+								}
+							}
+						}
+					}
+					enemyDatas(selectedEnemyNum, 0) = 80.0 + cos(0.0174532925199433 * random360) * 78
+					enemyDatas(selectedEnemyNum, 1) = 80.0 + sin(0.0174532925199433 * random360) * 78
+					enemyDatas(selectedEnemyNum, 5) = 0.2
+				}
+				enemySpawnC = 30 / level
+			}
+			else {
+				enemySpawnC -= 1
+			}
+			enemyPosC1 = 0.002 * zyobutsu + 0.6
+			if ( scoreAddTransparency >= 1 ) {
+				scoreAddTransparency -= 1
+			}
+			if ( scoreAddDispTime >= 1 ) {
+				scoreAddDispTime -= 1
+				if ( scoreAddDispTime == 1 ) {
+					if ( scoreAddC >= 1 ) {
+						scoreAddDisp = scoreAddC
+						scoreAddTransparency = 15
+					}
+					scoreAddC = 0
+				}
+				if ( scoreAddTransparency == 15 ) {
+					if ( scoreAddDisp >= 10 & scoreAddDisp <= 49 ) {
+						sePlayStack(25, 0) = 1
+					}
+					if ( scoreAddDisp >= 50 ) {
+						sePlayStack(24, 0) = 1
+					}
+				}
+			}
+			gosub *MoveBullets
+			gosub *MoveEffects
+			if ( levelUpTransparency >= 1 ) {
+				levelUpTransparency -= 1
+			}
+			if ( zyobutsu / 10 >= levelCoefficient ) {
+				level += 1
+				sePlayStack(13, 0) = 1
+				levelUpTransparency = 30
+				if ( level <= 2 ) {
+					levelCoefficient += 1
+				}
+				else {
+					levelCoefficient += level - 2
+				}
+			}
+			if ( isKeyPushed(6, 1) == 1 ) {
+				ds_stop musicBufferNum
+				ds_stop musicBufferNum + 1
+				goto *InitDatas
+			}
+			redraw 0
+			color 0, 0, 0
+			boxf
+			gmode 5, 0, 0, 256
+			pos 66, 51
+			gcopy 4, 170, 3, 26, 20
+			pos 56, 40
+			gcopy 4, 208, 0, 48, 40
+			for i, 0, enemyMax
+				if ( enemyExistence(i) >= 1 ) {
+					if ( enemyExistence(i) <= 7 ) {
+						gmode 5, 0, 0, enemyExistence(i) * 32
+					}
+					else {
+						gmode 5, 0, 0, 256
+					}
+					enemyAssetX = (enemyDatas(i, 4) - 90 + 720) \ 360 * 2 / 45
+					pos enemyDatas(i, 0) - 8, enemyDatas(i, 1) * 3 / 4 - 8
+					gcopy 3, 16 * enemyAssetX, 16 * ((frameCountA / 3 + i) \ 4), 16, 16
+				}
+				if ( enemyExistence(i) <= (-1) ) {
+					if ( enemyExistence(i) >= (-8) ) {
+						enemyTransparency = enemyExistence(i) * (-32)
+					}
+					if ( enemyExistence(i) == (-16) | enemyExistence(i) == (-14) | enemyExistence(i) == (-12) | enemyExistence(i) == (-10) ) {
+						enemyTransparency = 0
+					}
+					if ( enemyExistence(i) == (-15) | enemyExistence(i) == (-13) | enemyExistence(i) == (-11) | enemyExistence(i) == (-9) ) {
+						enemyTransparency = 256
+					}
+					enemyAssetX = (enemyDatas(i, 4) - 90 + 720) \ 360 * 2 / 45
+					gmode 5, 0, 0, enemyTransparency
+					pos enemyDatas(i, 0) - 8, enemyDatas(i, 1) * 3 / 4 - 8
+					gcopy 3, 16 * enemyAssetX, 16 * 4, 16, 16
+				}
+			next
+			for i, 0, effectMax
+				if ( effectMode(i) >= 1 ) {
+					gmode 5, 0, 0, effectMode(i) * 64 / 3
+					pos effectDatas(i, 0) - 4, effectDatas(i, 1) * 3 / 4 - 4
+					gcopy 2, 8 * ((frameCountA + i) \ 6), 16, 8, 8
+				}
+				i += 1
+			next
+			color 255, 255, 0
+			gmode 5, 0, 0, 256
+			pos playerPosX - 4, playerPosY * 3 / 4 - 4
+			gcopy 2, 8 * (frameCountA / 5 \ 6), 0, 8, 8
+			if ( sKeyTransparency >= 1 ) {
+				repeat 5
+					gmode 5, 0, 0, cnt * sKeyTransparency * 30 + 10
+					pos cos(0.0174532925199433 * playerPosAgnleOffset_) * (playerPosHeight_ * (cnt * 2 - 5) * 0.2) + 80 - 4, sin(0.0174532925199433 * playerPosAgnleOffset_) * (playerPosHeight_ * (cnt * 2 - 5) * 0.2) * 3 / 4 + 60 - 4
+					gcopy 2, 8 * ((frameCountA / 5 + cnt) \ 6), 0, 8, 8
+				loop
+			}
+			color 255, 0, 0
+			for i, 0, bulletMax
+				if ( bulletExistence(i) == 1 ) {
+					enemyAssetX = (bulletDatas(i, 4) + 90 + 720) \ 180 * 4 / 45
+					pos bulletDatas(i, 0) - 4, bulletDatas(i, 1) * 3 / 4 - 4
+					gcopy 2, 8 * enemyAssetX, 8, 8, 8
+				}
+			next
+			if ( levelUpTransparency >= 1 ) {
+				pos 46, 54
+				gmode 5, 0, 0, levelUpTransparency * 128 / 15
+				gcopy 2, 56, 112, 67, 11
+			}
+			gmode 5, 0, 0, 256
+			pos 1, 104
+			gcopy 2, 0, 120, 24, 7
+			pos 1, 112
+			gcopy 2, 0, 128, 24, 7
+			tempString = str(level)
+
+			for i, 0, strlen(tempString)
+				pos 30 + i * 5, 104
+				gcopy 2, int(strmid(tempString, i, 1)) * 5, 112, 4, 7
+			next
+
+			tempString = str(score)
+			for i, 0, strlen(tempString)
+				pos 30 + i * 5, 112
+				gcopy 2, int(strmid(tempString, i, 1)) * 5, 112, 4, 7
+			next
+
+			for i, 0, playerBomb
+				pos 152 - i * 8, 112
+				gcopy 2, (frameCountA + i) \ 4 * 8, 24, 7, 7
+			next
+
+			if ( scoreAddDispTime >= 1 & scoreAddC >= 1 & scoreAddTransparency <= 0 ) {
+				tempString = str(scoreAddC + 1)
+				for i, 0, strlen(tempString)
+					pos enemyPosX - 2 * strsize + i * 4, enemyPosY * 3 / 4 - 6
+					gcopy 2, int(strmid(tempString, i, 1)) * 4, 136 + rnd(2) * 8, 3, 6
+				next
+
+				for i, 0, strlen(tempString)
+					pos 1 + i * 4, 1
+					gcopy 2, int(strmid(tempString, i, 1)) * 4, 136 + rnd(2) * 8, 3, 6
+				next
+			}
+
+			if ( scoreAddTransparency >= 1 ) {
+				tempString = str(scoreAddDisp + 1)
+				gmode 5, 0, 0, scoreAddTransparency * 28
+				for i, 0, strlen(tempString)
+					pos 1 + i * 5, 1
+					gcopy 2, int(strmid(tempString, i, 1)) * 5, 112, 4, 7
+				next
+			}
+
+			if ( bombFrameCount == 13 ) {
+				color 255, 255, 255
+				boxf
+			}
+			if ( bombFrameCount == 12 | bombFrameCount == 11 ) {
+				pos 0, 0
+				gmode 5, 0, 0, 256
+				gcopy 0, 0, 0, 160, 120
+			}
+			pos 0, 0
+			gzoom 320, 320, 0, 0, 0, 160, 160
+			redraw 1
+			if ( musicframeCountA == 1 ) {
+				ds_play musicBufferNum
+			}
+			if ( musicframeCountA == 434 ) {
+				ds_loop musicBufferNum + 1
+			}
+		}
+		if ( gameMode == 0 ) {
+			random360 += 1
+			gosub *CheckKeyPush
+			if ( random360 == 64 ) {
+				gameMode = 1
+			}
+			if ( random360 == 1 ) {
+				sePlayStack(19, 0) = 1
+			}
+			redraw 0
+			color 0, 0, 0
+			boxf
+			if ( random360 >= 33 ) {
+				gmode 4, 0, 0, 256 - (random360 - 32) * 8
+			}
+			else {
+				if ( random360 <= 16 ) {
+					gmode 4, 0, 0, random360 * 16
+				}
+				else {
+					gmode 4, 0, 0, 256
+				}
+			}
+			pos 0, 0
+			gcopy 4, 0, 0, 160, 120
+			gmode 4, 0, 0, 256
+			pos 66, 51
+			gcopy 4, 170, 3, 26, 20
+			color 255, 255, 0
+			if ( random360 >= 33 ) {
+				gmode 5, 0, 0, (random360 - 32) * 8
+				pos playerPosX - 4, playerPosY * 3 / 4 - 4
+				gcopy 2, 8 * (frameCountA / 5 \ 6), 0, 8, 8
+			}
+			pos 0, 0
+			gzoom 320, 320, 0, 0, 0, 160, 160
+			redraw 1
+		}
+		if ( gameMode == 2 ) {
+			gosub *CheckKeyPush
+			enemyTransparencyC += 1
+			if ( enemyTransparencyC == 1 ) {
+				ds_stop musicBufferNum
+				ds_stop musicBufferNum + 1
+				sePlayStack(14, 0) = 1
+				copyMessageTransparency = 0
+			}
+			if ( enemyTransparencyC >= 20 ) {
+				frameCountB += 1
+			}
+			if ( frameCountB == 110 & musicNum != 3 ) {
+				ds_play musicBufferNum + 2
+			}
+			if ( frameCountB >= 120 & isKeyPushed(6, 1) == 1 ) {
+				ds_stop musicBufferNum + 2
+				if ( old_musicNum != musicNum ) {
+					goto *LoadMusic
+				}
+				else {
+					goto *InitDatas
+				}
+			}
+			if ( musicNum == 3 & frameCountB == 120 ) {
+				frameCountB = 408
+			}
+			if ( frameCountB >= 120 ) {
+				if ( copyMessageTransparency >= 1 ) {
+					copyMessageTransparency -= 1
+				}
+				if ( isKeyPushed(7, 1) == 1 & copyMessageTransparency == 0 ) {
+					sePlayStack(16, 0) = 1
+					clipBoardData =  "‚·‚±‚  : " + str(score)
+					clipBoardData += "\n‚ê‚×‚é : " + str(level)
+					clipBoardData += "\n‚¶‚å[‚Ô‚Â : " + str(zyobutsu)
+					clipBoardData += "\n#GhostMayoker"
+					clipset clipBoardData
+					copyMessageTransparency = 32
+				}
+			}
+			if ( frameCountB >= 408 ) {
+				if ( isKeyPushed(0, 1) == 1 ) {
+					sePlayStack(20, 0) = 1
+					musicNum = (musicNum + 1) \ 4
+				}
+				if ( isKeyPushed(2, 1) == 1 ) {
+					sePlayStack(20, 0) = 1
+					musicNum = (musicNum + 3) \ 4
+				}
+			}
+			effectRndBase = 3
+			if ( frameCountB == effectRndBase * 18 | frameCountB == effectRndBase * 20 | frameCountB == effectRndBase * 21 | frameCountB == effectRndBase * 22 ) {
+				random360 = rnd(360)
+				repeat 10
+					gosub *CheckEffectExistence
+					if ( selectedEffectNum != (-1) ) {
+						effectDatas(selectedEffectNum, 0) = 80.0
+						effectDatas(selectedEffectNum, 1) = 80.0
+						if ( frameCountB >= effectRndBase * 20 ) {
+							effectMode(selectedEffectNum) = 5
+							effectDatas(selectedEffectNum, 2) = 2.0 * (cnt \ 2 + 1) * cos(0.0174532925199433 * (360 / 10 * cnt + random360))
+							effectDatas(selectedEffectNum, 3) = 2.0 * (cnt \ 2 + 1) * sin(0.0174532925199433 * (360 / 10 * cnt + random360))
+						}
+						else {
+							effectMode(selectedEffectNum) = 12
+							effectDatas(selectedEffectNum, 2) = 2.0 * (cnt \ 2 + 2) * cos(0.0174532925199433 * (360 / 10 * cnt + random360))
+							effectDatas(selectedEffectNum, 3) = 2.0 * (cnt \ 2 + 2) * sin(0.0174532925199433 * (360 / 10 * cnt + random360))
+						}
+					}
+				loop
+			}
+			gosub *MoveBullets
+			gosub *MoveEffects
+			redraw 0
+			if ( enemyTransparencyC == 1 | enemyTransparencyC == 3 ) {
+				color 255, 255, 255
+			}
+			else {
+				color 0, 0, 0
+			}
+			boxf
+			gmode 5, 0, 0, 256
+			pos 66, 51
+			gcopy 4, 170, 3, 26, 20
+			if ( enemyTransparencyC <= 16 & enemyTransparencyC >= 2 ) {
+				for i, 0, enemyMax
+					if ( enemyExistence(i) >= 1 ) {
+						gmode 5, 0, 0, (256 - enemyTransparencyC * 16) * rnd(2)
+						enemyAssetX = (enemyDatas(i, 4) - 90 + 720) \ 360 * 2 / 45
+						pos enemyDatas(i, 0) - 8, enemyDatas(i, 1) * 3 / 4 - 8
+						gcopy 3, 16 * enemyAssetX, 16 * ((frameCountA / 3 + i) \ 4), 16, 16
+					}
+				next
+			}
+			if ( frameCountB \ effectRndBase == 0 ) {
+				if ( frameCountB != 0 & frameCountB / effectRndBase != 4 & frameCountB / effectRndBase != 6 & frameCountB / effectRndBase != 8 ) {
+					ghost_gameOverAnimationFrame += 1
+				}
+			}
+			if ( frameCountB == 50 ) {
+				sePlayStack(15, 0) = 1
+			}
+			if ( frameCountB >= 110 ) {
+				pos 45, 54
+				gmode 5, 0, 0, 256
+				gcopy 2, 56, 124, 70, 11
+			}
+			if ( frameCountB >= 408 ) {
+				pos 36, 72
+				gmode 5, 0, 0, 256
+				gcopy 2, 56, 136, 96, 15
+			}
+			if ( frameCountB >= 110 & copyMessageTransparency >= 1 ) {
+				pos 53, 88
+				gmode 5, 0, 0, copyMessageTransparency * 8
+				gcopy 2, 56, 152, 54, 7
+			}
+			if ( frameCountB >= 408 & isKeyPushed(0, 1) != 1 & isKeyPushed(2, 1) != 1 ) {
+				pos 72, 90
+				gcopy 4, 64 + frameCountA / 4 \ 4 * 16, 128 + musicNum * 16, 15, 15
+			}
+			gmode 5, 0, 0, 256
+			pos 64, 28
+			gcopy 3, 0 + ghost_gameOverAnimationFrame \ 10 * 32, 96 + ghost_gameOverAnimationFrame / 10 * 32, 32, 32
+			pos 1, 104
+			gcopy 2, 0, 120, 24, 7
+			pos 1, 112
+			gcopy 2, 0, 128, 24, 7
+			tempString = str(level)
+			for i, 0, strlen(tempString)
+				pos 30 + i * 5, 104
+				gcopy 2, int(strmid(tempString, i, 1)) * 5, 112, 4, 7
+			next
+			tempString = str(score)
+			for i, 0, strlen(tempString)
+				pos 30 + i * 5, 112
+				gcopy 2, int(strmid(tempString, i, 1)) * 5, 112, 4, 7
+			next
+			for i, 0, effectMax
+				if ( effectMode(i) >= 1 ) {
+					gmode 5, 0, 0, effectMode(i) * 64 / 3
+					pos effectDatas(i, 0) - 4, effectDatas(i, 1) * 3 / 4 - 4
+					gcopy 2, 8 * ((frameCountA + i) \ 6), 16, 8, 8
+				}
+			next
+			pos 0, 0
+			gzoom 320, 320, 0, 0, 0, 160, 160
+			redraw 1
+		}
+	}
+	gosub *PlaySE
+	await 0
+	goto *GameLoop
+
+*RenderEnemy
+	for i, 0, enemyMax
+		if ( enemyExistence(i) <= (-1) ) {
+			enemyExistence(i) += 1
+			enemyDatas(i, 2) = cos(0.0174532925199433 * enemyDatas(i, 4)) * enemyExistence(i) / 10
+			enemyDatas(i, 3) = sin(0.0174532925199433 * enemyDatas(i, 4)) * enemyExistence(i) / 10
+			enemyDatas(i, 0) += 1.0 * enemyDatas(i, 2)
+			enemyDatas(i, 1) += 1.0 * enemyDatas(i, 3)
+		}
+		if ( enemyExistence(i) >= 1 ) {
+			if ( enemyExistence(i) >= 150 / level & enemyExistence(i) >= 20 ) {
+				enemyAngle = 57.2957795130823 * atan(enemyDatas(i, 1) - 80, enemyDatas(i, 0) - 80) + 180
+				enemyAngle = enemyDatas(i, 4) - enemyAngle
+				if ( enemyAngle >= 180 ) {
+					enemyAngle -= 360
+				}
+				if ( enemyAngle <= (-180) ) {
+					enemyAngle += 360
+				}
+				if ( enemyAngle >= 1 ) {
+					enemyDatas(i, 4) -= 1
+				}
+				if ( enemyAngle <= (-1) ) {
+					enemyDatas(i, 4) += 1
+				}
+			}
+			else {
+				if ( enemyMode(i) == 0 ) {
+					enemyDatas(i, 4) = enemyDatas(i, 4) + (i \ 2 * 2 - 1)
+				}
+				else {
+					enemyDatas(i, 4) = enemyDatas(i, 4)
+				}
+			}
+			if ( enemyMode(i) == 0 ) {
+				enemyPosC2 = 1
+			}
+			if ( enemyMode(i) == 1 ) {
+				enemyPosC2 = 0.9
+			}
+			enemyDatas(i, 2) = cos(0.0174532925199433 * enemyDatas(i, 4)) * enemyPosC1 * enemyPosC2
+			enemyDatas(i, 3) = sin(0.0174532925199433 * enemyDatas(i, 4)) * enemyPosC1 * enemyPosC2
+			enemyDatas(i, 0) += 1.0 * enemyDatas(i, 2)
+			enemyDatas(i, 1) += 1.0 * enemyDatas(i, 3)
+			enemyExistence(i) += 1
+			distEnemyPlayerX = enemyDatas(i, 0) - playerPosX
+			distEnemyPlayerY = enemyDatas(i, 1) - playerPosY
+			if ( distEnemyPlayerX * distEnemyPlayerX + distEnemyPlayerY * distEnemyPlayerY <= 100 ) {
+				enemyExistence(i) = -16
+				zyobutsu += 1
+				seNumForDup = (seNumForDup + 1) \ 9
+				sePlayStack(1 + seNumForDup, 0) = 1
+				sePlayStack(10, 0) = 1
+				score += 10
+				random360 = rnd(360)
+				effectPosX = enemyDatas(i, 0)
+				effectPosY = enemyDatas(i, 1)
+				repeat 5
+					gosub *CheckEffectExistence
+					if ( selectedEffectNum != (-1) ) {
+						effectMode(selectedEffectNum) = 12
+						effectDatas(selectedEffectNum, 0) = effectPosX
+						effectDatas(selectedEffectNum, 1) = effectPosY
+						effectDatas(selectedEffectNum, 2) = 3.0 * cos(0.0174532925199433 * (360 / 5 * cnt + random360))
+						effectDatas(selectedEffectNum, 3) = 3.0 * sin(0.0174532925199433 * (360 / 5 * cnt + random360))
+					}
+				loop
+				if ( scoreAddDispTime >= 1 ) {
+					scoreAddC += 1
+					enemyPosX = enemyDatas(i, 0)
+					enemyPosY = enemyDatas(i, 1)
+				}
+				scoreAddDispTime = 20
+			}
+			for j, 0, bulletMax
+				if ( bulletExistence(j) == 1 & enemyExistence(i) >= 1 ) {
+					distEnemyPlayerX = enemyDatas(i, 0) - bulletDatas(j, 0)
+					distEnemyPlayerY = enemyDatas(i, 1) - bulletDatas(j, 1)
+					if ( distEnemyPlayerX * distEnemyPlayerX + distEnemyPlayerY * distEnemyPlayerY <= 100 ) {
+						enemyExistence(i) = -16
+						zyobutsu += 1
+						seNumForDup = (seNumForDup + 1) \ 9
+						sePlayStack(1 + seNumForDup, 0) = 1
+						sePlayStack(10, 0) = 1
+						score += 1 * (scoreAddC + 1)
+						random360 = rnd(360)
+						effectPosX = enemyDatas(i, 0)
+						effectPosY = enemyDatas(i, 1)
+						repeat 5
+							gosub *CheckEffectExistence
+							if ( selectedEffectNum != (-1) ) {
+								effectMode(selectedEffectNum) = 12
+								effectDatas(selectedEffectNum, 0) = effectPosX
+								effectDatas(selectedEffectNum, 1) = effectPosY
+								effectDatas(selectedEffectNum, 2) = 3.0 * cos(0.0174532925199433 * (360 / 5 * cnt + random360))
+								effectDatas(selectedEffectNum, 3) = 3.0 * sin(0.0174532925199433 * (360 / 5 * cnt + random360))
+							}
+						loop
+						if ( scoreAddDispTime >= 1 ) {
+							scoreAddC += 1
+							enemyPosX = enemyDatas(i, 0)
+							enemyPosY = enemyDatas(i, 1)
+						}
+						scoreAddDispTime = 20
+					}
+				}
+			next
+			if ( bombFrameCount == 12 & enemyExistence(i) >= 1 ) {
+				enemyExistence(i) = -16
+				zyobutsu += 1
+				sePlayStack(1 + (seNumForDup + 1) \ 9, 0) = 1
+				sePlayStack(11, 0) = 1
+				score += 5
+				gosub *CheckEffectExistence
+				if ( selectedEffectNum != (-1) ) {
+					effectMode(selectedEffectNum) = 12
+					effectDatas(selectedEffectNum, 0) = enemyDatas(i, 0)
+					effectDatas(selectedEffectNum, 1) = enemyDatas(i, 1)
+					effectDatas(selectedEffectNum, 2) = 0.0
+					effectDatas(selectedEffectNum, 3) = -5.0
+				}
+			}
+			distEnemyPlayerX = enemyDatas(i, 0) - 80
+			distEnemyPlayerY = enemyDatas(i, 1) - 80
+			if ( distEnemyPlayerX * distEnemyPlayerX + distEnemyPlayerY * distEnemyPlayerY <= 10 & enemyExistence(i) >= 1 ) {
+				if ( playerBomb >= 1 ) {
+					bombFrameCount = 13
+					sePlayStack(12, 0) = 1
+					playerBomb -= 1
+				}
+				else {
+					if ( bombFrameCount == 0 ) {
+						enemyExistence(i) = 0
+						gameMode = 2
+					}
+				}
+			}
+			if ( enemyDatas(i, 0) >= 167 | enemyDatas(i, 1) >= 172 | enemyDatas(i, 0) <= (-7) | enemyDatas(i, 1) <= (-12) ) {
+				enemyExistence(i) = 0
+			}
+		}
+	next
+	return
+
+*CheckEnemyExistence
+	selectedEnemyNum = -1
+	for i, 0, enemyMax
+		if ( enemyExistence(i) == 0 ) {
+			selectedEnemyNum = i
+			i ++
+		}
+	next
+	return
+
+*MoveBullets
+	for i, 0, bulletMax
+		if ( bulletExistence(i) == 1 ) {
+			if ( bulletDatas(i, 0) >= 161 | bulletDatas(i, 1) >= 161 | bulletDatas(i, 0) <= (-1) | bulletDatas(i, 1) <= (-1) ) {
+				bulletExistence(i) = 0
+			}
+			bulletDatas(i, 2) = cos(0.0174532925199433 * bulletDatas(i, 4)) * 10
+			bulletDatas(i, 3) = sin(0.0174532925199433 * bulletDatas(i, 4)) * 10
+			bulletDatas(i, 0) += bulletDatas(i, 2)
+			bulletDatas(i, 1) += bulletDatas(i, 3)
+		}
+	next
+	return
+
+*CheckBulletExistence
+	selectedBulledNum = -1
+	for i, 0, bulletMax
+		if ( bulletExistence(i) == 0 ) {
+			selectedBulledNum = i
+			i++
+		}
+	next
+	return
+
+*MoveEffects
+	for i, 0, effectMax
+		if ( effectMode(i) >= 1 ) {
+			effectMode(i) -= 1
+			if ( effectDatas(i, 0) >= 164 | effectDatas(i, 1) >= 164 | effectDatas(i, 0) <= (-3) | effectDatas(i, 1) <= (-3) ) {
+				effectMode(i) = 0
+			}
+			effectDatas(i, 2) = effectDatas(i, 2) * 0.8
+			effectDatas(i, 3) = effectDatas(i, 3) * 0.8
+			effectDatas(i, 0) += effectDatas(i, 2)
+			effectDatas(i, 1) += effectDatas(i, 3)
+		}
+	next
+	return
+
+*CheckEffectExistence
+	selectedEffectNum = -1
+	for k, 0, effectMax
+		if ( effectMode(k) == 0 ) {
+			selectedEffectNum = k
+			k++
+		}
+	next
+	return
+
+*CheckKeyPush
+	if ( ginfo(2) == 0 ) {
+		getkey isKeyPushed(0, 0), 37 //©
+		getkey isKeyPushed(1, 0), 38 //ª
+		getkey isKeyPushed(2, 0), 39 //¨
+		getkey isKeyPushed(3, 0), 40 //«
+		getkey isKeyPushed(4, 0), 90 //Z
+		getkey isKeyPushed(5, 0), 88 //X
+		getkey isKeyPushed(6, 0), 82 //R
+		getkey isKeyPushed(7, 0), 84 //T
+		getkey isKeyPushed(8, 0), 83 //S
+		getkey isKeyPushed(9, 0), 27 //ESC
+		for i, 0, 10
+			if ( isKeyPushed(i, 0) == 1 ) {
+				isKeyPushed(i, 1) += 1
+			}
+			else {
+				isKeyPushed(i, 1) = 0
+			}
+		next
+	}
+	return
+
+*PlaySE
+	repeat seNum
+		if ( sePlayStack(cnt, 0) == 1 ) {
+			ds_play seNum * sePlayStack(cnt, 1) + cnt
+			sePlayStack(cnt, 0) = 0
+			sePlayStack(cnt, 1) = (sePlayStack(cnt, 1) + 1) \ seDuplicateNum
+		}
+	loop
+	return
